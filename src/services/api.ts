@@ -1,128 +1,59 @@
-import axios from 'axios';
+import apiClient from '@/api/client';
+import { AUTH_ENDPOINTS, CAMPAIGN_ENDPOINTS, COMPANY_ENDPOINTS, ACTION_ENDPOINTS, DASHBOARD_ENDPOINTS } from '@/api/endpoints';
+import type {
+  User, LoginCredentials, AuthResponse, Campaign, CampaignCreate,
+  Company, CampaignAction, CampaignSummary as CampaignSummaryType,
+  PlatformCampaignsSummary,
+} from '@/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8006';
+export const api = {
+  // Auth
+  login: (credentials: LoginCredentials) =>
+    apiClient.post<AuthResponse>(AUTH_ENDPOINTS.LOGIN, credentials).then(r => r.data),
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+  register: (data: { email: string; password: string; name: string }) =>
+    apiClient.post<AuthResponse>('/auth/register', data).then(r => r.data),
 
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth-token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle auth errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('auth-token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Types based on backend schemas
-export interface Campaign {
-  id: string;
-  name: string;
-  description?: string;
-  status: string;
-  campaign_type: string;
-  budget_sats?: number;
-  reward_per_action_sats?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CampaignSummary {
-  id: string;
-  name: string;
-  status: string;
-  campaign_type: string;
-  total_actions: number;
-  verified_actions: number;
-  total_rewards_distributed_sats: number;
-  budget_sats?: number;
-  created_at: string;
-}
-
-export interface PlatformSummary {
-  total_campaigns: number;
-  active_campaigns: number;
-  total_actions: number;
-  verified_actions: number;
-  total_rewards_distributed_sats: number;
-}
-
-// API functions
-export const apiClient = {
-  // Health check
-  async health() {
-    const response = await api.get('/health');
-    return response.data;
-  },
+  getMe: () =>
+    apiClient.get<User>(AUTH_ENDPOINTS.ME).then(r => r.data),
 
   // Campaigns
-  async getCampaigns(statusFilter?: string) {
-    const params = statusFilter ? { status: statusFilter } : {};
-    const response = await api.get('/campaigns', { params });
-    return response.data as Campaign[];
-  },
+  getCampaigns: () =>
+    apiClient.get<Campaign[]>(CAMPAIGN_ENDPOINTS.LIST).then(r => r.data),
 
-  async getCampaignSummary(campaignId: string) {
-    const response = await api.get(`/campaigns/${campaignId}`);
-    return response.data as CampaignSummary;
-  },
+  getCampaign: (id: string) =>
+    apiClient.get<Campaign>(CAMPAIGN_ENDPOINTS.GET(id)).then(r => r.data),
 
-  async createCampaign(data: Partial<Campaign>) {
-    const response = await api.post('/campaigns', data);
-    return response.data as Campaign;
-  },
+  createCampaign: (data: CampaignCreate) =>
+    apiClient.post<Campaign>(CAMPAIGN_ENDPOINTS.CREATE, data).then(r => r.data),
 
-  async updateCampaign(campaignId: string, data: Partial<Campaign>) {
-    const response = await api.put(`/campaigns/${campaignId}`, data);
-    return response.data as Campaign;
-  },
+  updateCampaign: (id: string, data: Partial<CampaignCreate>) =>
+    apiClient.patch<Campaign>(CAMPAIGN_ENDPOINTS.UPDATE(id), data).then(r => r.data),
 
-  async deleteCampaign(campaignId: string) {
-    const response = await api.delete(`/campaigns/${campaignId}`);
-    return response.data;
-  },
+  pauseCampaign: (id: string) =>
+    apiClient.post<Campaign>(CAMPAIGN_ENDPOINTS.PAUSE(id)).then(r => r.data),
 
-  async activateCampaign(campaignId: string) {
-    const response = await api.post(`/campaigns/${campaignId}/activate`);
-    return response.data;
-  },
+  resumeCampaign: (id: string) =>
+    apiClient.post<Campaign>(CAMPAIGN_ENDPOINTS.RESUME(id)).then(r => r.data),
 
-  async pauseCampaign(campaignId: string) {
-    const response = await api.post(`/campaigns/${campaignId}/pause`);
-    return response.data;
-  },
+  cancelCampaign: (id: string) =>
+    apiClient.post<Campaign>(CAMPAIGN_ENDPOINTS.CANCEL(id)).then(r => r.data),
 
-  async resumeCampaign(campaignId: string) {
-    const response = await api.post(`/campaigns/${campaignId}/resume`);
-    return response.data;
-  },
+  getCampaignSummary: (id: string) =>
+    apiClient.get<CampaignSummaryType>(CAMPAIGN_ENDPOINTS.SUMMARY(id)).then(r => r.data),
 
-  async completeCampaign(campaignId: string) {
-    const response = await api.post(`/campaigns/${campaignId}/complete`);
-    return response.data;
-  },
+  // Campaign Actions (matches)
+  getCampaignActions: (campaignId: string) =>
+    apiClient.get<CampaignAction[]>(ACTION_ENDPOINTS.BY_CAMPAIGN(campaignId)).then(r => r.data),
 
-  // Platform summary
-  async getPlatformSummary() {
-    const response = await api.get('/campaigns/summary');
-    return response.data as PlatformSummary;
-  },
+  // Companies
+  getCompanies: () =>
+    apiClient.get<Company[]>(COMPANY_ENDPOINTS.LIST).then(r => r.data),
+
+  getCompany: (id: string) =>
+    apiClient.get<Company>(COMPANY_ENDPOINTS.GET(id)).then(r => r.data),
+
+  // Dashboard
+  getPlatformSummary: () =>
+    apiClient.get<PlatformCampaignsSummary>(DASHBOARD_ENDPOINTS.SUMMARY).then(r => r.data),
 };
-
-export default api;

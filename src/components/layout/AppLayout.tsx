@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -7,7 +7,10 @@ import {
   Menu, 
   X,
   Bitcoin,
-  Zap
+  Zap,
+  Shield,
+  Building2,
+  List
 } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
@@ -20,24 +23,16 @@ interface NavItem {
   label: string;
   path: string;
   icon: ReactNode;
+  roles?: string[];
 }
 
 const navItems: NavItem[] = [
-  {
-    label: 'Dashboard',
-    path: '/',
-    icon: <LayoutDashboard style={{ width: '20px', height: '20px' }} />,
-  },
-  {
-    label: 'Campaigns',
-    path: '/campaigns',
-    icon: <Megaphone style={{ width: '20px', height: '20px' }} />,
-  },
-  {
-    label: 'Settings',
-    path: '/settings',
-    icon: <Settings style={{ width: '20px', height: '20px' }} />,
-  },
+  { label: 'Dashboard', path: '/', icon: <LayoutDashboard style={{ width: '20px', height: '20px' }} />, roles: ['admin', 'company'] },
+  { label: 'Campaigns', path: '/campaigns', icon: <Megaphone style={{ width: '20px', height: '20px' }} />, roles: ['admin', 'company'] },
+  { label: 'Settings', path: '/settings', icon: <Settings style={{ width: '20px', height: '20px' }} />, roles: ['admin', 'company'] },
+  { label: 'Admin', path: '/admin', icon: <Shield style={{ width: '20px', height: '20px' }} />, roles: ['admin'] },
+  { label: 'Companies', path: '/admin/companies', icon: <Building2 style={{ width: '20px', height: '20px' }} />, roles: ['admin'] },
+  { label: 'All Campaigns', path: '/admin/campaigns', icon: <List style={{ width: '20px', height: '20px' }} />, roles: ['admin'] },
 ];
 
 const styles = {
@@ -186,6 +181,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { user, logout } = useAuthStore();
 
+  const filteredNavItems = useMemo(() => {
+    if (!user) return navItems;
+    return navItems.filter((item) => !item.roles || item.roles.includes(user.role));
+  }, [user]);
+
   const isActive = (path: string) => {
     return location.pathname === path;
   };
@@ -218,7 +218,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
         {/* Navigation */}
         <nav style={styles.nav}>
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
@@ -286,7 +286,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Header */}
         <header style={styles.header}>
           <h1 style={styles.headerTitle}>
-            {navItems.find((item) => isActive(item.path))?.label || 'Nostr Marketing'}
+            {filteredNavItems.find((item) => isActive(item.path))?.label || 'Nostr Marketing'}
           </h1>
           
           <div style={styles.headerUser}>
